@@ -47,6 +47,15 @@ class UGATIT(object) :
         self.device = args.device
         self.benchmark_flag = args.benchmark_flag
         self.resume = args.resume
+        str_ids = args.gpu_ids.split(',')
+        args.gpu_ids = []
+        for str_id in str_ids:
+            id = int(str_id)
+            if id >= 0:
+                args.gpu_ids.append(id)
+        if len(args.gpu_ids) > 0:
+            torch.cuda.set_device(args.gpu_ids[0])
+        self.suffix = args.suffix
 
         if torch.backends.cudnn.enabled and self.benchmark_flag:
             print('set benchmark !')
@@ -131,11 +140,11 @@ class UGATIT(object) :
 
         start_iter = 1
         if self.resume:
-            model_list = glob(os.path.join(self.result_dir, self.dataset, 'model', '*.pt'))
+            model_list = glob(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'model', '*.pt'))
             if not len(model_list) == 0:
                 model_list.sort()
                 start_iter = int(model_list[-1].split('_')[-1].split('.')[0])
-                self.load(os.path.join(self.result_dir, self.dataset, 'model'), start_iter)
+                self.load(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'model'), start_iter)
                 print(" [*] Load SUCCESS")
                 if self.decay_flag and start_iter > (self.iteration // 2):
                     self.G_optim.param_groups[0]['lr'] -= (self.lr / (self.iteration // 2)) * (start_iter - self.iteration // 2)
@@ -192,7 +201,7 @@ class UGATIT(object) :
             D_loss_B = self.adv_weight * (D_ad_loss_GB + D_ad_cam_loss_GB + D_ad_loss_LB + D_ad_cam_loss_LB)
 
             Discriminator_loss = D_loss_A + D_loss_B
-            Discriminator_loss.backward()
+            Discriminator_loss.backward()   # 计算判别器的loss并反向传播
             self.D_optim.step()
 
             # Update G
@@ -327,12 +336,12 @@ class UGATIT(object) :
                                                                cam(tensor2numpy(fake_B2A2B_heatmap[0]), self.img_size),
                                                                RGB2BGR(tensor2numpy(denorm(fake_B2A2B[0])))), 0)), 1)
 
-                cv2.imwrite(os.path.join(self.result_dir, self.dataset, 'img', 'A2B_%07d.png' % step), A2B * 255.0)
-                cv2.imwrite(os.path.join(self.result_dir, self.dataset, 'img', 'B2A_%07d.png' % step), B2A * 255.0)
+                cv2.imwrite(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'img', 'A2B_%07d.png' % step), A2B * 255.0)
+                cv2.imwrite(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'img', 'B2A_%07d.png' % step), B2A * 255.0)
                 self.genA2B.train(), self.genB2A.train(), self.disGA.train(), self.disGB.train(), self.disLA.train(), self.disLB.train()
 
             if step % self.save_freq == 0:
-                self.save(os.path.join(self.result_dir, self.dataset, 'model'), step)
+                self.save(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'model'), step)
 
             if step % 1000 == 0:
                 params = {}
@@ -342,7 +351,7 @@ class UGATIT(object) :
                 params['disGB'] = self.disGB.state_dict()
                 params['disLA'] = self.disLA.state_dict()
                 params['disLB'] = self.disLB.state_dict()
-                torch.save(params, os.path.join(self.result_dir, self.dataset + '_params_latest.pt'))
+                torch.save(params, os.path.join(self.result_dir, self.dataset + '_' + self.suffix, self.dataset + '_params_latest.pt'))
 
     def save(self, dir, step):
         params = {}
@@ -364,11 +373,11 @@ class UGATIT(object) :
         self.disLB.load_state_dict(params['disLB'])
 
     def test(self):
-        model_list = glob(os.path.join(self.result_dir, self.dataset, 'model', '*.pt'))
+        model_list = glob(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'model', '*.pt'))
         if not len(model_list) == 0:
             model_list.sort()
             iter = int(model_list[-1].split('_')[-1].split('.')[0])
-            self.load(os.path.join(self.result_dir, self.dataset, 'model'), iter)
+            self.load(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'model'), iter)
             print(" [*] Load SUCCESS")
         else:
             print(" [*] Load FAILURE")
@@ -392,7 +401,7 @@ class UGATIT(object) :
                                   cam(tensor2numpy(fake_A2B2A_heatmap[0]), self.img_size),
                                   RGB2BGR(tensor2numpy(denorm(fake_A2B2A[0])))), 0)
 
-            cv2.imwrite(os.path.join(self.result_dir, self.dataset, 'test', 'A2B_%d.png' % (n + 1)), A2B * 255.0)
+            cv2.imwrite(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'test', 'A2B_%d.png' % (n + 1)), A2B * 255.0)
 
         for n, (real_B, _) in enumerate(self.testB_loader):
             real_B = real_B.to(self.device)
@@ -411,4 +420,4 @@ class UGATIT(object) :
                                   cam(tensor2numpy(fake_B2A2B_heatmap[0]), self.img_size),
                                   RGB2BGR(tensor2numpy(denorm(fake_B2A2B[0])))), 0)
 
-            cv2.imwrite(os.path.join(self.result_dir, self.dataset, 'test', 'B2A_%d.png' % (n + 1)), B2A * 255.0)
+            cv2.imwrite(os.path.join(self.result_dir, self.dataset + '_' + self.suffix, 'test', 'B2A_%d.png' % (n + 1)), B2A * 255.0)

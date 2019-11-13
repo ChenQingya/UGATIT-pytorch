@@ -35,15 +35,18 @@ def parse_args():
     parser.add_argument('--device', type=str, default='cuda', choices=['cpu', 'cuda'], help='Set gpu mode; [cpu, cuda]')
     parser.add_argument('--benchmark_flag', type=str2bool, default=False)
     parser.add_argument('--resume', type=str2bool, default=False)
+    parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+    parser.add_argument('--suffix', default='', type=str,
+                        help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{netG}_size{loadSize}')
 
     return check_args(parser.parse_args())
 
 """checking arguments"""
 def check_args(args):
     # --result_dir
-    check_folder(os.path.join(args.result_dir, args.dataset, 'model'))
-    check_folder(os.path.join(args.result_dir, args.dataset, 'img'))
-    check_folder(os.path.join(args.result_dir, args.dataset, 'test'))
+    check_folder(os.path.join(args.result_dir, args.dataset + '_' + args.suffix, 'model'))
+    check_folder(os.path.join(args.result_dir, args.dataset + '_' + args.suffix, 'img'))
+    check_folder(os.path.join(args.result_dir, args.dataset + '_' + args.suffix, 'test'))
 
     # --epoch
     try:
